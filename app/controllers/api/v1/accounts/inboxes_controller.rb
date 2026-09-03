@@ -9,7 +9,7 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
 
   def index
     @inboxes = policy_scope(Current.account.inboxes)
-               .includes(:channel, :portal, :working_hours, { avatar_attachment: :blob })
+               .includes(:channel, :portal, :working_hours, :business_hour_breaks, :business_hour_holidays, { avatar_attachment: :blob })
                .order_by_name
   end
 
@@ -55,6 +55,8 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
       inbox_params[:csat_config] = format_csat_config(permitted_params[:csat_config]) if permitted_params[:csat_config].present?
       @inbox.update!(inbox_params)
       update_inbox_working_hours
+      update_inbox_business_hour_breaks
+      update_inbox_business_hour_holidays
       update_channel if channel_update_required?
     end
 
@@ -110,6 +112,18 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
 
   def update_inbox_working_hours
     @inbox.update_working_hours(params.permit(working_hours: Inbox::OFFISABLE_ATTRS)[:working_hours]) if params[:working_hours]
+  end
+
+  def update_inbox_business_hour_breaks
+    return unless params.key?(:business_hour_breaks)
+
+    @inbox.update_business_hour_breaks(params.permit(business_hour_breaks: Inbox::BREAK_ATTRS)[:business_hour_breaks])
+  end
+
+  def update_inbox_business_hour_holidays
+    return unless params.key?(:business_hour_holidays)
+
+    @inbox.update_business_hour_holidays(params.permit(business_hour_holidays: Inbox::HOLIDAY_ATTRS)[:business_hour_holidays])
   end
 
   def update_channel
