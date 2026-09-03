@@ -6,11 +6,17 @@ import SettingsToggleSection from 'dashboard/components-next/Settings/SettingsTo
 import SettingsFieldSection from 'dashboard/components-next/Settings/SettingsFieldSection.vue';
 import WootMessageEditor from 'dashboard/components/widgets/WootWriter/Editor.vue';
 import BusinessDay from './BusinessDay.vue';
+import BusinessBreaks from './BusinessBreaks.vue';
+import BusinessHolidays from './BusinessHolidays.vue';
 import {
   timeSlotParse,
   timeSlotTransform,
   defaultTimeSlot,
   timeZoneOptions,
+  parseBreaks,
+  transformBreaks,
+  parseHolidays,
+  transformHolidays,
 } from '../helpers/businessHour';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import ComboBox from 'dashboard/components-next/combobox/ComboBox.vue';
@@ -25,6 +31,8 @@ export default {
     SettingsToggleSection,
     SettingsFieldSection,
     BusinessDay,
+    BusinessBreaks,
+    BusinessHolidays,
     NextButton,
     WootMessageEditor,
     ComboBox,
@@ -51,6 +59,8 @@ export default {
         6: 'Saturday',
       },
       timeSlots: [...defaultTimeSlot],
+      breaks: [],
+      holidays: [],
     };
   },
   computed: {
@@ -103,6 +113,8 @@ export default {
       this.isBusinessHoursEnabled = isEnabled;
       this.unavailableMessage = unavailableMessage || '';
       this.timeSlots = slots;
+      this.breaks = parseBreaks(this.inbox.business_hour_breaks);
+      this.holidays = parseHolidays(this.inbox.business_hour_holidays);
       this.timeZone =
         this.timeZones.find(item => timeZone === item.value) ||
         DEFAULT_TIMEZONE;
@@ -120,6 +132,8 @@ export default {
           working_hours_enabled: this.isBusinessHoursEnabled,
           out_of_office_message: this.unavailableMessage,
           working_hours: timeSlotTransform(this.timeSlots),
+          business_hour_breaks: transformBreaks(this.breaks),
+          business_hour_holidays: transformHolidays(this.holidays),
           timezone: this.timeZone.value,
           channel: {},
         };
@@ -214,6 +228,35 @@ export default {
           </table>
         </div>
       </div>
+
+      <div v-if="isBusinessHoursEnabled" class="flex items-center my-8 py-1">
+        <div class="flex-1 h-px bg-n-weak" />
+        <span class="text-body-main text-n-slate-11 px-2">
+          {{ $t('INBOX_MGMT.BUSINESS_HOURS.BREAKS.TITLE') }}
+        </span>
+        <div class="flex-1 h-px bg-n-weak" />
+      </div>
+      <div v-if="isBusinessHoursEnabled" class="mt-2">
+        <p class="text-body-main text-n-slate-11 mb-4">
+          {{ $t('INBOX_MGMT.BUSINESS_HOURS.BREAKS.HELP') }}
+        </p>
+        <BusinessBreaks v-model="breaks" :day-names="dayNames" />
+      </div>
+
+      <div v-if="isBusinessHoursEnabled" class="flex items-center my-8 py-1">
+        <div class="flex-1 h-px bg-n-weak" />
+        <span class="text-body-main text-n-slate-11 px-2">
+          {{ $t('INBOX_MGMT.BUSINESS_HOURS.HOLIDAYS.TITLE') }}
+        </span>
+        <div class="flex-1 h-px bg-n-weak" />
+      </div>
+      <div v-if="isBusinessHoursEnabled" class="mt-2">
+        <p class="text-body-main text-n-slate-11 mb-4">
+          {{ $t('INBOX_MGMT.BUSINESS_HOURS.HOLIDAYS.HELP') }}
+        </p>
+        <BusinessHolidays v-model="holidays" />
+      </div>
+
       <div class="w-full flex justify-end items-center py-4 mt-2">
         <NextButton
           type="submit"

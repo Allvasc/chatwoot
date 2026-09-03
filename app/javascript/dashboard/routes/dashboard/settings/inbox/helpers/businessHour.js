@@ -147,3 +147,84 @@ export const timeZoneOptions = () => {
     value: timeZoneData[key],
   }));
 };
+
+const timeStringToParts = value => {
+  const date = parse(value, 'hh:mm a', new Date());
+  return { hour: getHours(date), minutes: getMinutes(date) };
+};
+
+export const DEFAULT_BREAK_ROW = { day: 1, from: '12:00 PM', to: '01:00 PM', message: '' };
+export const DEFAULT_HOLIDAY_ROW = {
+  date: '',
+  repeatsYearly: false,
+  allDay: true,
+  from: '09:00 AM',
+  to: '01:00 PM',
+  message: '',
+};
+
+export const parseBreaks = (apiBreaks = []) =>
+  (apiBreaks || []).map(item => ({
+    day: item.day_of_week,
+    from: getTime(item.start_hour, item.start_minutes),
+    to: getTime(item.end_hour, item.end_minutes),
+    message: item.message || '',
+  }));
+
+export const transformBreaks = (rows = []) =>
+  rows
+    .filter(row => row.from && row.to && Number.isInteger(row.day))
+    .map(row => {
+      const from = timeStringToParts(row.from);
+      const to = timeStringToParts(row.to);
+      return {
+        day_of_week: row.day,
+        start_hour: from.hour,
+        start_minutes: from.minutes,
+        end_hour: to.hour,
+        end_minutes: to.minutes,
+        message: row.message || '',
+      };
+    });
+
+export const parseHolidays = (apiHolidays = []) =>
+  (apiHolidays || []).map(item => {
+    const allDay = item.start_hour == null || item.end_hour == null;
+    return {
+      date: item.holiday_date,
+      repeatsYearly: Boolean(item.repeats_yearly),
+      allDay,
+      from: allDay ? '09:00 AM' : getTime(item.start_hour, item.start_minutes),
+      to: allDay ? '01:00 PM' : getTime(item.end_hour, item.end_minutes),
+      message: item.message || '',
+    };
+  });
+
+export const transformHolidays = (rows = []) =>
+  rows
+    .filter(row => row.date)
+    .map(row => {
+      const base = {
+        holiday_date: row.date,
+        repeats_yearly: Boolean(row.repeatsYearly),
+        message: row.message || '',
+      };
+      if (row.allDay || !row.from || !row.to) {
+        return {
+          ...base,
+          start_hour: null,
+          start_minutes: null,
+          end_hour: null,
+          end_minutes: null,
+        };
+      }
+      const from = timeStringToParts(row.from);
+      const to = timeStringToParts(row.to);
+      return {
+        ...base,
+        start_hour: from.hour,
+        start_minutes: from.minutes,
+        end_hour: to.hour,
+        end_minutes: to.minutes,
+      };
+    });

@@ -1221,7 +1221,33 @@
         "VALIDATION_ERROR": "Starting time should be before closing time.",
         "CHOOSE": "Choose"
       },
-      "ALL_DAY": "All-Day"
+      "ALL_DAY": "All-Day",
+      "BREAKS": {
+        "TITLE": "Breaks during the day",
+        "HELP": "Close this inbox during set times (for example lunch) and reply automatically. Add one or more per day.",
+        "ADD": "Add break",
+        "EMPTY": "No breaks configured.",
+        "DAY": "Day",
+        "FROM": "From",
+        "TO": "To",
+        "MESSAGE": "Automatic reply",
+        "MESSAGE_PLACEHOLDER": "Message sent while on this break",
+        "REMOVE": "Remove break"
+      },
+      "HOLIDAYS": {
+        "TITLE": "Holidays and special dates",
+        "HELP": "Close this inbox on specific dates and reply automatically. Add as many dates as you need.",
+        "ADD": "Add date",
+        "EMPTY": "No dates configured.",
+        "DATE": "Date",
+        "REPEATS_YEARLY": "Repeats every year",
+        "ALL_DAY": "All day",
+        "FROM": "From",
+        "TO": "To",
+        "MESSAGE": "Automatic reply",
+        "MESSAGE_PLACEHOLDER": "Message sent on this date",
+        "REMOVE": "Remove date"
+      }
     },
     "IMAP": {
       "TITLE": "IMAP",

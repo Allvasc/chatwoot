@@ -1190,7 +1190,33 @@
         "VALIDATION_ERROR": "Hora inicial deve ser antes de hora de fechamento.",
         "CHOOSE": "Selecione"
       },
-      "ALL_DAY": "O dia todo"
+      "ALL_DAY": "O dia todo",
+      "BREAKS": {
+        "TITLE": "Intervalos durante o dia",
+        "HELP": "Fecha esta caixa de entrada em horários definidos (por exemplo, almoço) e responde automaticamente. Adicione um ou mais por dia.",
+        "ADD": "Adicionar intervalo",
+        "EMPTY": "Nenhum intervalo configurado.",
+        "DAY": "Dia",
+        "FROM": "Início",
+        "TO": "Fim",
+        "MESSAGE": "Resposta automática",
+        "MESSAGE_PLACEHOLDER": "Mensagem enviada durante este intervalo",
+        "REMOVE": "Remover intervalo"
+      },
+      "HOLIDAYS": {
+        "TITLE": "Feriados e datas especiais",
+        "HELP": "Fecha esta caixa de entrada em datas específicas e responde automaticamente. Adicione quantas datas quiser.",
+        "ADD": "Adicionar data",
+        "EMPTY": "Nenhuma data configurada.",
+        "DATE": "Data",
+        "REPEATS_YEARLY": "Repete todo ano",
+        "ALL_DAY": "Dia todo",
+        "FROM": "Início",
+        "TO": "Fim",
+        "MESSAGE": "Resposta automática",
+        "MESSAGE_PLACEHOLDER": "Mensagem enviada nesta data",
+        "REMOVE": "Remover data"
+      }
     },
     "IMAP": {
       "TITLE": "IMAP",
