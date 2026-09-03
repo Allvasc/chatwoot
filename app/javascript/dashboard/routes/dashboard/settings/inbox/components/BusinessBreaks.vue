@@ -79,9 +79,10 @@ const removeRow = index => {
           />
         </label>
         <NextButton
+          type="button"
           variant="ghost"
           color="ruby"
-          size="small"
+          size="sm"
           icon="i-lucide-trash-2"
           :aria-label="t('INBOX_MGMT.BUSINESS_HOURS.BREAKS.REMOVE')"
           @click="removeRow(index)"
@@ -107,8 +108,9 @@ const removeRow = index => {
 
     <div>
       <NextButton
+        type="button"
         variant="link"
-        size="small"
+        size="sm"
         icon="i-lucide-plus"
         :label="t('INBOX_MGMT.BUSINESS_HOURS.BREAKS.ADD')"
         @click="addRow"
