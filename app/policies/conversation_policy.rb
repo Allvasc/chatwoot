@@ -4,18 +4,20 @@ class ConversationPolicy < ApplicationPolicy
   end
 
   def destroy?
+    return team_access? if team_restricted?
+
     administrator?
   end
 
   def show?
+    return team_access? if team_restricted?
+
     administrator? || agent_bot? || agent_can_view_conversation?
   end
 
   private
 
   def agent_can_view_conversation?
-    return team_access? if team_restricted?
-
     inbox_access? || team_access?
   end
 

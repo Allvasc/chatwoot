@@ -9,7 +9,7 @@ class Conversations::PermissionFilterService
   end
 
   def perform
-    return conversations if user_role == 'administrator'
+    return conversations if user_role == 'administrator' && !team_restricted?
 
     accessible_conversations
   end
@@ -18,6 +18,10 @@ class Conversations::PermissionFilterService
 
   def accessible_conversations
     scope = team_restricted? ? conversations.where(team_id: visible_team_ids) : conversations
+
+    # a team-restricted administrator is scoped to their teams across every inbox,
+    # without the inbox-membership limit that applies to agents
+    return scope if user_role == 'administrator'
 
     return hinted_accessible_conversations(scope) if @plan_hint_selective_filter
 
