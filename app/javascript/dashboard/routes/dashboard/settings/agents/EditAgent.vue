@@ -38,6 +38,10 @@ const props = defineProps({
     type: Number,
     default: null,
   },
+  conversationVisibility: {
+    type: String,
+    default: 'all_conversations',
+  },
 });
 
 const emit = defineEmits(['close']);
@@ -49,6 +53,7 @@ const { t } = useI18n();
 
 const agentName = ref(props.name);
 const agentAvailability = ref(props.availability);
+const restrictToTeams = ref(props.conversationVisibility === 'assigned_teams');
 const selectedRoleId = ref(props.customRoleId || props.type);
 const agentCredentials = ref({ email: props.email });
 
@@ -126,6 +131,9 @@ const editAgent = async () => {
       id: props.id,
       name: agentName.value,
       availability: agentAvailability.value,
+      conversation_visibility: restrictToTeams.value
+        ? 'assigned_teams'
+        : 'all_conversations',
     };
 
     if (selectedRole.value.name.startsWith('custom_')) {
@@ -200,6 +208,18 @@ const resetPassword = async () => {
           </select>
           <span v-if="v$.agentAvailability.$error" class="message">
             {{ $t('AGENT_MGMT.EDIT.FORM.AGENT_AVAILABILITY.ERROR') }}
+          </span>
+        </label>
+      </div>
+
+      <div class="w-full">
+        <label class="flex items-start gap-2 cursor-pointer">
+          <input v-model="restrictToTeams" type="checkbox" class="mt-1 m-0" />
+          <span class="flex flex-col">
+            <span>{{ $t('AGENT_MGMT.CONVERSATION_VISIBILITY.LABEL') }}</span>
+            <span class="text-n-slate-11 text-sm">
+              {{ $t('AGENT_MGMT.CONVERSATION_VISIBILITY.HELP') }}
+            </span>
           </span>
         </label>
       </div>

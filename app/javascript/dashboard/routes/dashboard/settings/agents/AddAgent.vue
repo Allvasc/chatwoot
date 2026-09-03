@@ -15,6 +15,7 @@ const { t } = useI18n();
 const agentName = ref('');
 const agentEmail = ref('');
 const selectedRoleId = ref('agent');
+const restrictToTeams = ref(false);
 
 const rules = {
   agentName: { required },
@@ -69,6 +70,9 @@ const addAgent = async () => {
     const payload = {
       name: agentName.value,
       email: agentEmail.value,
+      conversation_visibility: restrictToTeams.value
+        ? 'assigned_teams'
+        : 'all_conversations',
     };
 
     if (selectedRole.value.name.startsWith('custom_')) {
@@ -144,6 +148,18 @@ const addAgent = async () => {
             :placeholder="$t('AGENT_MGMT.ADD.FORM.EMAIL.PLACEHOLDER')"
             @input="v$.agentEmail.$touch"
           />
+        </label>
+      </div>
+
+      <div class="w-full">
+        <label class="flex items-start gap-2 cursor-pointer">
+          <input v-model="restrictToTeams" type="checkbox" class="mt-1 m-0" />
+          <span class="flex flex-col">
+            <span>{{ $t('AGENT_MGMT.CONVERSATION_VISIBILITY.LABEL') }}</span>
+            <span class="text-n-slate-11 text-sm">
+              {{ $t('AGENT_MGMT.CONVERSATION_VISIBILITY.HELP') }}
+            </span>
+          </span>
         </label>
       </div>
 

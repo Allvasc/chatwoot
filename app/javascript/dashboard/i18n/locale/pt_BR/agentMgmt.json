@@ -5,6 +5,10 @@
     "LOADING": "Buscando lista de agente",
     "DESCRIPTION": "Um agente é um membro de seu time de atendimento ao cliente que pode visualizar e responder às mensagens de usuários. A lista abaixo mostra todos os agentes de sua conta.",
     "LEARN_MORE": "Saiba mais sobre as funções do usuário",
+    "CONVERSATION_VISIBILITY": {
+      "LABEL": "Restringir aos times deste agente",
+      "HELP": "Quando ativo, esta pessoa só vê conversas atribuídas aos times de que ela participa (vale também para administradores)."
+    },
     "AGENT_TYPES": {
       "ADMINISTRATOR": "Administrador",
       "AGENT": "Agente"
