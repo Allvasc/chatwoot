@@ -14,7 +14,13 @@ class ConversationPolicy < ApplicationPolicy
   private
 
   def agent_can_view_conversation?
+    return team_access? if team_restricted?
+
     inbox_access? || team_access?
+  end
+
+  def team_restricted?
+    account_user&.conversation_visibility == 'assigned_teams'
   end
 
   def administrator?

@@ -33,6 +33,7 @@ class AccountUser < ApplicationRecord
 
   enum role: { agent: 0, administrator: 1 }
   enum availability: { online: 0, offline: 1, busy: 2 }
+  enum conversation_visibility: { all_conversations: 0, assigned_teams: 1 }
 
   accepts_nested_attributes_for :account
 
@@ -83,7 +84,9 @@ class AccountUser < ApplicationRecord
   end
 
   def filtered_unread_count_visibility_changed?
-    previous_changes.key?('role') || previous_changes.key?('custom_role_id')
+    previous_changes.key?('role') ||
+      previous_changes.key?('custom_role_id') ||
+      previous_changes.key?('conversation_visibility')
   end
 
   def invalidate_filtered_unread_count_visibility

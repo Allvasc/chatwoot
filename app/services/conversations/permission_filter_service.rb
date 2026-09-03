@@ -17,16 +17,28 @@ class Conversations::PermissionFilterService
   private
 
   def accessible_conversations
-    return hinted_accessible_conversations if @plan_hint_selective_filter
+    scope = team_restricted? ? conversations.where(team_id: visible_team_ids) : conversations
 
-    conversations.where(inbox: user.inboxes.where(account_id: account.id))
+    return hinted_accessible_conversations(scope) if @plan_hint_selective_filter
+
+    scope.where(inbox: user.inboxes.where(account_id: account.id))
+  end
+
+  def team_restricted?
+    account_user&.conversation_visibility == 'assigned_teams'
+  end
+
+  def visible_team_ids
+    ids = user.teams.where(account_id: account.id).pluck(:id)
+    ids << nil if ActiveModel::Type::Boolean.new.cast(ENV.fetch('TEAM_RESTRICTED_SEES_UNASSIGNED_TEAM', false))
+    ids
   end
 
   # Same rows as accessible_conversations. `inbox_id + 0` keeps the planner from
   # driving the query through an inbox scan, which it grossly misestimates when a
   # highly selective filter (e.g. labels) is present on large accounts (CW-7787).
-  def hinted_accessible_conversations
-    conversations.where(
+  def hinted_accessible_conversations(scope = conversations)
+    scope.where(
       '(conversations.inbox_id + 0) IN (
         SELECT inbox_members.inbox_id FROM inbox_members
         INNER JOIN inboxes ON inboxes.id = inbox_members.inbox_id
