@@ -1,6 +1,6 @@
 class CreateBusinessHourHolidays < ActiveRecord::Migration[7.2]
   def change
-    create_table :business_hour_holidays do |t|
+    create_table :business_hour_holidays, if_not_exists: true do |t|
       t.references :inbox, null: false, foreign_key: true
       t.bigint :account_id
       t.date :holiday_date, null: false
@@ -13,7 +13,7 @@ class CreateBusinessHourHolidays < ActiveRecord::Migration[7.2]
       t.timestamps
     end
 
-    add_index :business_hour_holidays, %i[inbox_id holiday_date]
-    add_index :business_hour_holidays, :account_id
+    add_index :business_hour_holidays, %i[inbox_id holiday_date], if_not_exists: true
+    add_index :business_hour_holidays, :account_id, if_not_exists: true
   end
 end

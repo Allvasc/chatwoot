@@ -10,7 +10,11 @@ permissions:
   packages: write
 
 jobs:
+  guardrails:
+    uses: ./.github/workflows/fork-guardrails.yml
+
   docker:
+    needs: guardrails
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

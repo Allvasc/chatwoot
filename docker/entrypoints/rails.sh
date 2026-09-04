@@ -30,5 +30,12 @@ do
   sleep 2;
 done
 
+# DO NOT run `rails db:migrate` / `db:chatwoot_prepare` / `db:prepare` here.
+# On EasyPanel the health-check kills the container while the migration is still
+# running, leaving a half-applied migration -> next boot fails with PG::DuplicateTable
+# and the service crash-loops (happened 2026-09-04). Migrations on this fork are
+# MANUAL: after deploy, run `bundle exec rails db:chatwoot_prepare` once from the
+# service console. The `fork-guardrails` CI check enforces this.
+
 # Execute the main process of the container
 exec "$@"

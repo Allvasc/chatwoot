@@ -1,0 +1,60 @@
+name: fork-guardrails
+
+# Hard stops for mistakes that broke production on this fork before.
+# Runs on every PR and every push to deploy. A failure here blocks the image build.
+
+# On push to deploy this runs as a required prerequisite of build-image.yml
+# (via workflow_call), so the image is never built when a guardrail fails.
+on:
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  guardrails:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: No premium feature enabled by default
+        run: |
+          ruby -ryaml -e '
+            feats = YAML.safe_load_file("config/features.yml")
+            bad = feats.select { |f| f["premium"] && f["enabled"] }
+            unless bad.empty?
+              warn "config/features.yml: premium feature(s) shipped enabled: #{bad.map { |f| f["name"] }.join(", ")}"
+              warn "Premium features are proprietary Chatwoot code; enabling them in the shared image is a licensing violation."
+              warn "Toggle them per-account via Super Admin instead."
+              exit 1
+            end
+            puts "OK: no premium feature enabled by default"
+          '
+
+      - name: No DB migrations in the container entrypoint
+        run: |
+          if grep -nE "db:(migrate|chatwoot_prepare|prepare|schema:load)" docker/entrypoints/rails.sh; then
+            echo "::error::docker/entrypoints/rails.sh must not run migrations on boot."
+            echo "The EasyPanel health-check kills the container mid-migration -> PG::DuplicateTable crash-loop."
+            echo "Migrations on this fork are manual (rails db:chatwoot_prepare from the service console after deploy)."
+            exit 1
+          fi
+          echo "OK: entrypoint does not migrate on boot"
+
+      - name: Custom migrations must be idempotent
+        run: |
+          # Migrations we authored on this fork (timestamp >= 20260903000000) can be
+          # re-run against a DB where they partially applied (EasyPanel kill mid-migrate).
+          # Every create_table / add_column / add_index / add_reference must pass
+          # `if_not_exists: true` so a re-run is a no-op instead of PG::DuplicateTable.
+          fail=0
+          for f in db/migrate/*.rb; do
+            ts=$(basename "$f" | cut -d_ -f1)
+            [ "$ts" -ge 20260903000000 ] 2>/dev/null || continue
+            offenders=$(grep -nE "^\s*(create_table|add_column|add_index|add_reference)\b" "$f" | grep -vE "if_not_exists:\s*true" || true)
+            if [ -n "$offenders" ]; then
+              echo "::error file=$f::schema statement(s) without 'if_not_exists: true':"
+              echo "$offenders"
+              fail=1
+            fi
+          done
+          [ "$fail" -eq 0 ] && echo "OK: custom migrations are idempotent" || exit 1

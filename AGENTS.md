@@ -1,5 +1,22 @@
 # Chatwoot Development Guidelines
 
+## ⚠️ This is a fork (Allvasc/chatwoot) — read before deploying
+
+Branch `deploy` → GitHub Actions builds `ghcr.io/allvasc/chatwoot:latest` → EasyPanel VPS.
+Full procedure, incident playbook and rationale: **`deployment/FORK_DEPLOY.md`**.
+
+Three rules the CI (`fork-guardrails`) hard-blocks — each already broke production:
+
+1. **Never set a `premium: true` feature to `enabled: true`** in `config/features.yml`
+   (proprietary Chatwoot code; test premium features per-account via Super Admin instead).
+2. **Never run migrations from `docker/entrypoints/rails.sh`** (`db:migrate` /
+   `db:chatwoot_prepare` / `db:prepare`) — EasyPanel's health-check kills the container
+   mid-migration and it crash-loops on `PG::DuplicateTable`. Migrations are **manual**:
+   `bundle exec rails db:chatwoot_prepare` from the service console after deploy.
+3. **Custom migrations (timestamp `>= 20260903000000`) must be idempotent** —
+   `if_not_exists: true` on every `create_table` / `add_column` / `add_index` / `add_reference`.
+
+
 ## Build / Test / Lint
 
 - **Setup**: `bundle install && pnpm install`

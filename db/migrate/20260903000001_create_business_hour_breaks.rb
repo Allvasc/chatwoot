@@ -1,6 +1,6 @@
 class CreateBusinessHourBreaks < ActiveRecord::Migration[7.2]
   def change
-    create_table :business_hour_breaks do |t|
+    create_table :business_hour_breaks, if_not_exists: true do |t|
       t.references :inbox, null: false, foreign_key: true
       t.bigint :account_id
       t.integer :day_of_week, null: false
@@ -12,7 +12,7 @@ class CreateBusinessHourBreaks < ActiveRecord::Migration[7.2]
       t.timestamps
     end
 
-    add_index :business_hour_breaks, %i[inbox_id day_of_week]
-    add_index :business_hour_breaks, :account_id
+    add_index :business_hour_breaks, %i[inbox_id day_of_week], if_not_exists: true
+    add_index :business_hour_breaks, :account_id, if_not_exists: true
   end
 end
