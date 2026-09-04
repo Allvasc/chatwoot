@@ -176,7 +176,7 @@
   enabled: false
 - name: channel_voice
   display_name: Voice Channel
-  enabled: true
+  enabled: false
   premium: true
 - name: notion_integration
   display_name: Notion Integration
