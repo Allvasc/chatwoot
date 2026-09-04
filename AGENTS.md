@@ -16,6 +16,10 @@ Three rules the CI (`fork-guardrails`) hard-blocks — each already broke produc
 3. **Custom migrations (timestamp `>= 20260903000000`) must be idempotent** —
    `if_not_exists: true` on every `create_table` / `add_column` / `add_index` / `add_reference`.
 
+The `fork-spec` workflow runs RSpec for the fork customizations on every PR / push to
+`deploy` (it applies the fork migrations on top of `db/schema.rb`, which is stale and
+does not carry them). Add specs there when you touch the customized code.
+
 
 ## Build / Test / Lint
 

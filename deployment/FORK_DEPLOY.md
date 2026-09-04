@@ -10,6 +10,7 @@ workflows.
 ```
 branch `deploy`  ──push──▶  GitHub Actions
                               ├─ fork-guardrails.yml   (bloqueia se violar as regras abaixo)
+                              ├─ fork-spec.yml         (RSpec das customizações; roda, ainda não bloqueia)
                               └─ build-image.yml       (só roda se guardrails passar)
                                     └─ push ▶ ghcr.io/allvasc/chatwoot:latest
                                                           │
@@ -112,5 +113,16 @@ redeploy → `db:chatwoot_prepare`.
 
 | Área | Commits | Resumo |
 |---|---|---|
-| Visibilidade de conversa por time | `1b9738be7`, `84f7309bb`, `3a64cb001` | `account_users.conversation_visibility` (`all_conversations`/`assigned_teams`); escopo por `team_members` em `PermissionFilterService` + `ConversationPolicy`; checkbox na tela de Agentes; vale para admin quando marcado |
+| Visibilidade de conversa por time | `1b9738be7`, `84f7309bb`, `3a64cb001` | `account_users.conversation_visibility` (`all_conversations`/`assigned_teams`); escopo por `team_members` em `PermissionFilterService` + `ConversationPolicy`; checkbox na tela de Agentes; vale para admin quando marcado. Restritos também enxergam conversas **sem time** (fila não roteada) para não ficarem no limbo — agente restrito só nas suas inboxes, admin restrito em todas. |
 | Intervalos no dia + feriados nos Horários de Funcionamento | `52b4417fb`, `dae7c8358`, `5b2721371` | tabelas `business_hour_breaks` / `business_hour_holidays`; `OutOfOffisable#out_of_office_context` (prioridade feriado > intervalo > grade); UI na aba Horário de Funcionamento |
+
+## Testes das customizações
+
+- **`fork-spec.yml`** roda os specs afetados pelas customizações a cada PR / push na `deploy`.
+  Sobe Postgres+Redis, faz `db:schema:load` **e depois `db:migrate`** (o `db/schema.rb`
+  versionado não carrega as migrations do fork), e roda RSpec.
+- **`db/schema.rb` está desatualizado** — não inclui as 4 migrations `20260903000000+`.
+  O `fork-spec` publica um artefato `regenerated-schema-rb` a cada run; baixe e commite
+  para atualizar o arquivo (precisa de um ambiente Ruby só para revisar o diff).
+- Sem ambiente Ruby local? Rode os specs num **GitHub Codespace** do repo:
+  `bundle exec rake db:chatwoot_prepare RAILS_ENV=test && bundle exec rspec spec/policies/conversation_policy_spec.rb spec/services/conversations/permission_filter_service_spec.rb`

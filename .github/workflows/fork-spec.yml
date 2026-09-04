@@ -1,0 +1,116 @@
+name: fork-spec
+
+# RSpec coverage for THIS fork's customizations:
+#   - team-based conversation visibility (account_users.conversation_visibility)
+#   - intra-day business-hour breaks + holiday dates
+#
+# Why a separate workflow: upstream's run_foss_spec.yml only triggers on PRs and
+# on pushes to develop|master, and it builds the test DB from db/schema.rb with
+# `db:schema:load`. db/schema.rb on this fork does NOT carry our migrations
+# (20260903000000+), so the custom code had zero CI coverage and any spec that
+# touched it would fail. This workflow loads the base schema and then runs the
+# fork migrations on top, so the custom tables/columns exist.
+#
+# It runs but does not (yet) block the image build. To make it a hard gate, add
+# it to build-image.yml the same way fork-guardrails.yml is wired in.
+
+on:
+  push:
+    branches: [deploy]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  fork-spec:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ''
+          POSTGRES_DB: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --mount type=tmpfs,destination=/var/lib/postgresql/data
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:alpine
+        ports:
+          - 6379:6379
+        options: --entrypoint redis-server
+
+    env:
+      RAILS_ENV: test
+      POSTGRES_HOST: localhost
+      NODE_OPTIONS: --openssl-legacy-provider
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      # The customizations under test are all FOSS. Mirror run_foss_spec.yml and
+      # strip enterprise/ so the run matches upstream's CE suite (no EE licence,
+      # no EE prepends changing behaviour).
+      - name: Strip enterprise code
+        run: rm -rf enterprise spec/enterprise
+
+      - name: Create database
+        run: bundle exec rake db:create
+
+      - name: Enable pgvector
+        run: PGPASSWORD="" psql -h localhost -U postgres -d chatwoot_test -c "CREATE EXTENSION IF NOT EXISTS vector;"
+
+      - name: Load base schema
+        run: bundle exec rake db:schema:load
+
+      - name: Apply fork migrations on top of the base schema
+        run: bundle exec rake db:migrate
+
+      # db:migrate rewrote db/schema.rb (dump_schema_after_migration is on in test).
+      # Publish that as an artifact so it can be committed to refresh the checked-in
+      # schema, then restore the original so maintain_test_schema! stays quiet.
+      - name: Publish regenerated schema.rb
+        run: cp db/schema.rb "$RUNNER_TEMP/schema.rb"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: regenerated-schema-rb
+          path: ${{ runner.temp }}/schema.rb
+
+      - name: Restore checked-in schema.rb
+        run: git checkout HEAD -- db/schema.rb
+
+      - name: Run fork customization specs
+        run: |
+          bundle exec rspec \
+            spec/policies/conversation_policy_spec.rb \
+            spec/services/conversations/permission_filter_service_spec.rb \
+            spec/models/account_user_spec.rb \
+            spec/builders/agent_builder_spec.rb \
+            spec/controllers/api/v1/accounts/agents_controller_spec.rb \
+            --profile=10 \
+            --format documentation
+
+      - name: Upload rails test log
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: fork-spec-log
+          path: log/test.log
