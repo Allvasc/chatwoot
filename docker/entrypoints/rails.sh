@@ -30,5 +30,15 @@ do
   sleep 2;
 done
 
+# Run pending migrations + installation-config sync before booting.
+# EasyPanel (and a plain `docker compose`) never runs the Procfile `release:`
+# phase, so without this a deployed image ships new migrations that never apply.
+# Safe because this stack runs a single rails/web container; keep RUN_MIGRATIONS
+# unset/true only on the web service, not on extra workers sharing this entrypoint.
+if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
+  echo "Running db:chatwoot_prepare (pending migrations + config loader)...."
+  bundle exec rails db:chatwoot_prepare
+fi
+
 # Execute the main process of the container
 exec "$@"
