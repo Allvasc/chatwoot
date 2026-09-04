@@ -69,5 +69,51 @@ RSpec.describe ConversationPolicy, type: :policy do
         expect(subject).not_to permit(agent_context, conversation)
       end
     end
+
+    context 'when member has assigned_teams visibility' do
+      let(:team) { create(:team, account: account) }
+      let(:inbox) { create(:inbox, account: account) }
+
+      before do
+        agent.account_users.find_by(account: account).update!(conversation_visibility: :assigned_teams)
+        administrator.account_users.find_by(account: account).update!(conversation_visibility: :assigned_teams)
+      end
+
+      context 'with a conversation in one of their teams' do
+        let(:conversation) { create(:conversation, :with_team, account: account, team: team) }
+
+        before { create(:team_member, team: team, user: agent) }
+
+        it 'allows the restricted agent' do
+          expect(subject).to permit(agent_context, conversation)
+        end
+      end
+
+      context 'with a conversation in another team' do
+        let(:conversation) { create(:conversation, :with_team, account: account) }
+
+        it 'denies the restricted agent' do
+          expect(subject).not_to permit(agent_context, conversation)
+        end
+      end
+
+      context 'with a conversation not assigned to any team' do
+        let(:conversation) { create(:conversation, account: account, inbox: inbox) }
+
+        it 'allows the restricted admin' do
+          expect(subject).to permit(administrator_context, conversation)
+        end
+
+        it 'allows a restricted agent who is a member of the inbox' do
+          create(:inbox_member, user: agent, inbox: inbox)
+
+          expect(subject).to permit(agent_context, conversation)
+        end
+
+        it 'denies a restricted agent outside the inbox' do
+          expect(subject).not_to permit(agent_context, conversation)
+        end
+      end
+    end
   end
 end

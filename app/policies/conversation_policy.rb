@@ -4,18 +4,27 @@ class ConversationPolicy < ApplicationPolicy
   end
 
   def destroy?
-    return team_access? if team_restricted?
+    return team_access? || unassigned_team_access? if team_restricted?
 
     administrator?
   end
 
   def show?
-    return team_access? if team_restricted?
+    return team_access? || unassigned_team_access? if team_restricted?
 
     administrator? || agent_bot? || agent_can_view_conversation?
   end
 
   private
+
+  # A team-restricted member can also reach conversations that aren't assigned to
+  # any team yet (the shared unassigned queue). Restricted admins see all of them;
+  # restricted agents only within their own inboxes, mirroring PermissionFilterService.
+  def unassigned_team_access?
+    return false if record.team_id.present?
+
+    administrator? || inbox_access?
+  end
 
   def agent_can_view_conversation?
     inbox_access? || team_access?

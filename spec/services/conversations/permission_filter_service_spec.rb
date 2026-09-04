@@ -44,6 +44,38 @@ RSpec.describe Conversations::PermissionFilterService do
       end
     end
 
+    context 'when user has assigned_teams visibility' do
+      let(:team) { create(:team, account: account) }
+      let!(:team_conversation) { create(:conversation, account: account, inbox: inbox, team: team) }
+      let!(:other_team_conversation) do
+        create(:conversation, account: account, inbox: inbox, team: create(:team, account: account))
+      end
+
+      before do
+        create(:team_member, team: team, user: agent)
+        create(:team_member, team: team, user: admin)
+        agent.account_users.find_by(account: account).update!(conversation_visibility: :assigned_teams)
+        admin.account_users.find_by(account: account).update!(conversation_visibility: :assigned_teams)
+      end
+
+      it 'scopes a restricted admin to their teams plus team-less conversations' do
+        result = described_class.new(account.conversations, admin, account).perform
+
+        expect(result).to include(team_conversation)
+        expect(result).to include(conversation)          # no team -> shared unassigned queue
+        expect(result).to include(another_conversation)  # no team -> shared unassigned queue
+        expect(result).not_to include(other_team_conversation)
+      end
+
+      it 'scopes a restricted agent to their teams plus team-less conversations in their inboxes' do
+        result = described_class.new(account.conversations, agent, account).perform
+
+        expect(result).to include(team_conversation)
+        expect(result).to include(conversation)
+        expect(result).not_to include(other_team_conversation)
+      end
+    end
+
     context 'when plan_hint_selective_filter is enabled' do
       let!(:other_inbox) { create(:inbox, account: account) }
       let!(:inaccessible_conversation) { create(:conversation, account: account, inbox: other_inbox) }

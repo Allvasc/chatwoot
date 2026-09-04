@@ -32,10 +32,12 @@ class Conversations::PermissionFilterService
     account_user&.conversation_visibility == 'assigned_teams'
   end
 
+  # Team-restricted members also see conversations not yet routed to any team
+  # (the shared "unassigned team" queue), so those don't sit in limbo with nobody
+  # able to pick them up. Restricted agents are still additionally scoped to their
+  # own inboxes by #accessible_conversations.
   def visible_team_ids
-    ids = user.teams.where(account_id: account.id).pluck(:id)
-    ids << nil if ActiveModel::Type::Boolean.new.cast(ENV.fetch('TEAM_RESTRICTED_SEES_UNASSIGNED_TEAM', false))
-    ids
+    user.teams.where(account_id: account.id).pluck(:id) + [nil]
   end
 
   # Same rows as accessible_conversations. `inbox_id + 0` keeps the planner from
