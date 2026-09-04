@@ -71,6 +71,49 @@ novo num banco onde aplicou parcialmente, é no-op em vez de erro.
 5. Smoke test: login, lista de conversas, Configurações → Agentes, Configurações →
    Caixa de entrada → Horário de Funcionamento.
 
+## Puxar uma versão nova do upstream (ex.: `vX.Y.Z`)
+
+Quando o Chatwoot lança uma versão nova e você quer trazer pro fork:
+
+1. **Nunca direto na `deploy`.** Cria uma branch a partir dela:
+   ```
+   git checkout -b upgrade/vX.Y.Z deploy
+   git fetch upstream --tags   # upstream = chatwoot/chatwoot
+   git merge vX.Y.Z
+   ```
+   `merge`, não `rebase` — a `deploy` já foi usada pra buildar imagens em produção;
+   rebase reescreveria histórico já publicado.
+
+2. **Resolver conflitos com atenção redobrada nos arquivos que o fork toca:**
+   - `config/features.yml` — manter `channel_voice` (e qualquer outra `premium`) em
+     `enabled: false`. É o tipo de conflito que pode reintroduzir o que já foi revertido.
+   - `docker/entrypoints/rails.sh` — garantir que aceitar a versão deles não traga de
+     volta migração no boot.
+   - `app/policies/conversation_policy.rb`, `app/services/conversations/permission_filter_service.rb`,
+     `app/models/account_user.rb`, `app/builders/agent_builder.rb`,
+     `app/controllers/.../agents_controller.rb`, `app/models/concerns/out_of_offisable.rb`
+     — onde estão as customizações do fork.
+   - `Gemfile.lock` — se o upstream mudou versão do Rails/gems, roda `bundle install`
+     (local ou num Codespace) pra atualizar.
+
+3. **Abre PR** dessa branch pra `deploy`. Isso dispara `fork-guardrails` e `fork-spec`
+   automaticamente (ambos rodam em PR) — se algum conflito resolvido errado reativou
+   um flag premium ou migração no boot, o CI barra ali, antes de qualquer merge.
+
+4. **Confere as migrations novas da versão** — geralmente são aditivas, mas lê o
+   changelog/PRs do release procurando algo destrutivo (rename de coluna, drop). O
+   timestamp delas vem depois das migrations do fork (`20260903...`), então a ordem
+   se resolve sozinha.
+
+5. **Merge do PR** → build da imagem dispara.
+
+6. **Ensaiar antes de qualquer cliente** — mesmo método de sempre: dump real de um
+   cliente (ou o backup local do EasyPanel) → projeto descartável no EasyPanel → sobe
+   a imagem nova → `db:chatwoot_prepare` → clica nas telas que esse cliente usa.
+
+7. **Rollout cliente por cliente**, seguindo o "Procedimento de deploy" acima — imagem
+   por tag de SHA (nunca `:latest` no cliente), backup, migração manual, smoke test.
+
 ### Ao criar/recriar um serviço no EasyPanel
 
 O template do Chatwoot no EasyPanel vem com `image: chatwoot/chatwoot` **oficial**.
