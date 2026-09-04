@@ -32,7 +32,10 @@ jobs:
 
       - name: No DB migrations in the container entrypoint
         run: |
-          if grep -nE "db:(migrate|chatwoot_prepare|prepare|schema:load)" docker/entrypoints/rails.sh; then
+          # Only executable lines count — the file's own explanatory comment
+          # names these tasks on purpose.
+          if grep -vE '^[[:space:]]*#' docker/entrypoints/rails.sh \
+             | grep -nE "db:(migrate|chatwoot_prepare|prepare|schema:load)"; then
             echo "::error::docker/entrypoints/rails.sh must not run migrations on boot."
             echo "The EasyPanel health-check kills the container mid-migration -> PG::DuplicateTable crash-loop."
             echo "Migrations on this fork are manual (rails db:chatwoot_prepare from the service console after deploy)."
