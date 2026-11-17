@@ -29,7 +29,8 @@ permissions:
 
 jobs:
   fork-spec:
-    runs-on: ubuntu-latest
+    # pinned: ubuntu-latest moved to 26.04, which has no prebuilt Ruby 3.4.4 (.ruby-version)
+    runs-on: ubuntu-24.04
 
     services:
       postgres:
