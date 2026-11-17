@@ -105,6 +105,8 @@ jobs:
             spec/models/account_user_spec.rb \
             spec/builders/agent_builder_spec.rb \
             spec/controllers/api/v1/accounts/agents_controller_spec.rb \
+            spec/listeners/action_cable_listener_spec.rb \
+            spec/services/search_service_spec.rb \
             --profile=10 \
             --format documentation
 

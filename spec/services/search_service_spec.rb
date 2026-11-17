@@ -451,6 +451,44 @@ describe SearchService do
     end
   end
 
+  describe 'team-restricted user' do
+    let(:params) { { q: 'Potter' } }
+    let!(:team) { create(:team, account: account) }
+    let!(:other_team) { create(:team, account: account) }
+    let!(:team_conversation) { create(:conversation, contact: harry, inbox: inbox, account: account, team: team) }
+    let!(:other_team_conversation) { create(:conversation, contact: harry, inbox: inbox, account: account, team: other_team) }
+
+    before do
+      create(:team_member, team: team, user: user)
+      account.account_users.find_by(user: user).update!(conversation_visibility: :assigned_teams)
+    end
+
+    it 'finds only conversations of their teams or without a team' do
+      search = described_class.new(current_user: user, current_account: account, params: params, search_type: 'Conversation')
+      ids = search.perform[:conversations].map(&:id)
+
+      expect(ids).to include(conversation.id, team_conversation.id)
+      expect(ids).not_to include(other_team_conversation.id)
+    end
+
+    it 'finds only messages of conversations they can see' do
+      visible = create(:message, account: account, inbox: inbox, conversation: team_conversation, content: 'Potter in my team')
+      hidden = create(:message, account: account, inbox: inbox, conversation: other_team_conversation, content: 'Potter in another team')
+      search = described_class.new(current_user: user, current_account: account, params: params, search_type: 'Message')
+      ids = search.perform[:messages].map(&:id)
+
+      expect(ids).to include(visible.id)
+      expect(ids).not_to include(hidden.id)
+    end
+
+    it 'applies the restriction to administrators too' do
+      account.account_users.find_by(user: user).update!(role: :administrator)
+      search = described_class.new(current_user: user, current_account: account, params: params, search_type: 'Conversation')
+
+      expect(search.perform[:conversations].map(&:id)).not_to include(other_team_conversation.id)
+    end
+  end
+
   describe '#use_gin_search' do
     let(:params) { { q: 'test' } }
 

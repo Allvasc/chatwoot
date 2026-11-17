@@ -91,7 +91,9 @@ Quando o Chatwoot lança uma versão nova e você quer trazer pro fork:
      volta migração no boot.
    - `app/policies/conversation_policy.rb`, `app/services/conversations/permission_filter_service.rb`,
      `app/models/account_user.rb`, `app/builders/agent_builder.rb`,
-     `app/controllers/.../agents_controller.rb`, `app/models/concerns/out_of_offisable.rb`
+     `app/controllers/.../agents_controller.rb`, `app/models/concerns/out_of_offisable.rb`,
+     `app/listeners/action_cable_listener.rb`, `app/services/search_service.rb`,
+     `app/javascript/dashboard/helper/actionCable.js`
      — onde estão as customizações do fork.
    - `Gemfile.lock` — se o upstream mudou versão do Rails/gems, roda `bundle install`
      (local ou num Codespace) pra atualizar.
@@ -156,7 +158,7 @@ redeploy → `db:chatwoot_prepare`.
 
 | Área | Commits | Resumo |
 |---|---|---|
-| Visibilidade de conversa por time | `1b9738be7`, `84f7309bb`, `3a64cb001` | `account_users.conversation_visibility` (`all_conversations`/`assigned_teams`); escopo por `team_members` em `PermissionFilterService` + `ConversationPolicy`; checkbox na tela de Agentes; vale para admin quando marcado. Restritos também enxergam conversas **sem time** (fila não roteada) para não ficarem no limbo — agente restrito só nas suas inboxes, admin restrito em todas. |
+| Visibilidade de conversa por time | `1b9738be7`, `84f7309bb`, `3a64cb001` | `account_users.conversation_visibility` (`all_conversations`/`assigned_teams`); escopo por `team_members` em `PermissionFilterService` + `ConversationPolicy`; checkbox na tela de Agentes; vale para admin quando marcado. Restritos também enxergam conversas **sem time** (fila não roteada) para não ficarem no limbo — agente restrito só nas suas inboxes, admin restrito em todas. A mesma regra (`Conversations::TeamVisibility`) vale para os eventos em tempo real (`ActionCableListener` não envia eventos de conversa de outro time; quando a conversa muda de time, quem perdeu acesso recebe `conversation.access_revoked` só com o id e o frontend tira da lista) e para a busca (`SearchService`). |
 | Intervalos no dia + feriados nos Horários de Funcionamento | `52b4417fb`, `dae7c8358`, `5b2721371` | tabelas `business_hour_breaks` / `business_hour_holidays`; `OutOfOffisable#out_of_office_context` (prioridade feriado > intervalo > grade); UI na aba Horário de Funcionamento |
 
 ## Testes das customizações

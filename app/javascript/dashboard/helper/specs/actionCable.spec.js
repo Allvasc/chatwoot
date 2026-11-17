@@ -76,6 +76,16 @@ describe('ActionCableConnector - Copilot Tests', () => {
     });
   });
 
+  describe('conversation access revoked event handler', () => {
+    it('removes the conversation from the list', () => {
+      actionCable.onReceived({
+        event: 'conversation.access_revoked',
+        data: { id: 42, account_id: 1 },
+      });
+      expect(mockDispatch).toHaveBeenCalledWith('removeConversation', 42);
+    });
+  });
+
   describe('conversation unread count event handlers', () => {
     it('should register the conversation.unread_count_changed event handler', () => {
       expect(Object.keys(actionCable.events)).toContain(

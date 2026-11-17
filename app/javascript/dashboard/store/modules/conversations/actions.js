@@ -378,6 +378,11 @@ const actions = {
     }
   },
 
+  // Drops a conversation from the list without deleting it on the server.
+  removeConversation({ commit }, conversationId) {
+    commit(types.DELETE_CONVERSATION, conversationId);
+  },
+
   addConversation({ commit, state, dispatch, rootState }, conversation) {
     const { currentInbox, appliedFilters } = state;
     const {

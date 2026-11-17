@@ -158,6 +158,69 @@ describe ActionCableListener do
     end
   end
 
+  describe 'team-restricted members' do
+    let!(:team) { create(:team, account: account) }
+    let!(:team_conversation) { create(:conversation, account: account, inbox: inbox, team: team) }
+    let!(:restricted_agent) { create(:user, account: account, role: :agent) }
+    let!(:restricted_team_agent) { create(:user, account: account, role: :agent) }
+    let!(:restricted_admin) { create(:user, account: account, role: :administrator) }
+
+    before do
+      create(:inbox_member, inbox: inbox, user: restricted_agent)
+      create(:inbox_member, inbox: inbox, user: restricted_team_agent)
+      create(:team_member, team: team, user: restricted_team_agent)
+      [restricted_agent, restricted_team_agent, restricted_admin].each do |user|
+        user.account_users.find_by(account: account).update!(conversation_visibility: :assigned_teams)
+      end
+      inbox.reload
+    end
+
+    it 'does not send events of a team conversation to restricted members outside that team' do
+      event = Events::Base.new(:'conversation.updated', Time.zone.now, conversation: team_conversation)
+
+      expect(ActionCableBroadcastJob).to receive(:perform_later).with(
+        a_collection_containing_exactly(
+          agent.pubsub_token, admin.pubsub_token, restricted_team_agent.pubsub_token, team_conversation.contact_inbox.pubsub_token
+        ),
+        'conversation.updated',
+        hash_including(id: team_conversation.display_id)
+      )
+      listener.conversation_updated(event)
+    end
+
+    it 'still sends events of conversations without a team to restricted inbox members and admins' do
+      event = Events::Base.new(:'conversation.updated', Time.zone.now, conversation: conversation)
+
+      expect(ActionCableBroadcastJob).to receive(:perform_later).with(
+        a_collection_containing_exactly(
+          agent.pubsub_token, admin.pubsub_token, restricted_agent.pubsub_token, restricted_team_agent.pubsub_token,
+          restricted_admin.pubsub_token, conversation.contact_inbox.pubsub_token
+        ),
+        'conversation.updated',
+        hash_including(id: conversation.display_id)
+      )
+      listener.conversation_updated(event)
+    end
+
+    it 'tells restricted members outside the new team to drop the conversation, sending only its id' do
+      event = Events::Base.new(:'team.changed', Time.zone.now, conversation: team_conversation)
+      allow(ActionCableBroadcastJob).to receive(:perform_later)
+
+      listener.team_changed(event)
+
+      expect(ActionCableBroadcastJob).to have_received(:perform_later).with(
+        a_collection_containing_exactly(agent.pubsub_token, admin.pubsub_token, restricted_team_agent.pubsub_token),
+        'team.changed',
+        hash_including(id: team_conversation.display_id)
+      )
+      expect(ActionCableBroadcastJob).to have_received(:perform_later).with(
+        a_collection_containing_exactly(restricted_agent.pubsub_token, restricted_admin.pubsub_token),
+        'conversation.access_revoked',
+        { id: team_conversation.display_id, account_id: account.id }
+      )
+    end
+  end
+
   describe '#contact_deleted' do
     let(:event_name) { :'contact.deleted' }
     let!(:contact) { create(:contact, account: account) }

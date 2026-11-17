@@ -1,6 +1,9 @@
 class ActionCableListener < BaseListener
   include Events::Types
 
+  # Tells a team-restricted member to drop a conversation that moved to a team they are not in.
+  CONVERSATION_ACCESS_REVOKED = 'conversation.access_revoked'.freeze
+
   def notification_created(event)
     notification, account, unread_count, count = extract_notification_and_account(event)
     tokens = [event.data[:notification].user.pubsub_token]
@@ -41,7 +44,7 @@ class ActionCableListener < BaseListener
   def message_created(event)
     message, account = extract_message_and_account(event)
     conversation = message.conversation
-    tokens = user_tokens(account, conversation.inbox.members) + contact_tokens(conversation.contact_inbox, message)
+    tokens = conversation_user_tokens(account, conversation) + contact_tokens(conversation.contact_inbox, message)
 
     broadcast(account, tokens, MESSAGE_CREATED, message.push_event_data)
   end
@@ -49,7 +52,7 @@ class ActionCableListener < BaseListener
   def message_updated(event)
     message, account = extract_message_and_account(event)
     conversation = message.conversation
-    tokens = user_tokens(account, conversation.inbox.members) + contact_tokens(conversation.contact_inbox, message)
+    tokens = conversation_user_tokens(account, conversation) + contact_tokens(conversation.contact_inbox, message)
 
     broadcast(account, tokens, MESSAGE_UPDATED, message.push_event_data.merge(previous_changes: event.data[:previous_changes]))
   end
@@ -57,35 +60,35 @@ class ActionCableListener < BaseListener
   def first_reply_created(event)
     message, account = extract_message_and_account(event)
     conversation = message.conversation
-    tokens = user_tokens(account, conversation.inbox.members)
+    tokens = conversation_user_tokens(account, conversation)
 
     broadcast(account, tokens, FIRST_REPLY_CREATED, message.push_event_data)
   end
 
   def conversation_created(event)
     conversation, account = extract_conversation_and_account(event)
-    tokens = user_tokens(account, conversation.inbox.members) + contact_inbox_tokens(conversation.contact_inbox)
+    tokens = conversation_user_tokens(account, conversation) + contact_inbox_tokens(conversation.contact_inbox)
 
     broadcast(account, tokens, CONVERSATION_CREATED, conversation.push_event_data)
   end
 
   def conversation_read(event)
     conversation, account = extract_conversation_and_account(event)
-    tokens = user_tokens(account, conversation.inbox.members)
+    tokens = conversation_user_tokens(account, conversation)
 
     broadcast(account, tokens, CONVERSATION_READ, conversation.push_event_data)
   end
 
   def conversation_status_changed(event)
     conversation, account = extract_conversation_and_account(event)
-    tokens = user_tokens(account, conversation.inbox.members) + contact_inbox_tokens(conversation.contact_inbox)
+    tokens = conversation_user_tokens(account, conversation) + contact_inbox_tokens(conversation.contact_inbox)
 
     broadcast(account, tokens, CONVERSATION_STATUS_CHANGED, conversation.push_event_data)
   end
 
   def conversation_updated(event)
     conversation, account = extract_conversation_and_account(event)
-    tokens = user_tokens(account, conversation.inbox.members) + contact_inbox_tokens(conversation.contact_inbox)
+    tokens = conversation_user_tokens(account, conversation) + contact_inbox_tokens(conversation.contact_inbox)
 
     broadcast(account, tokens, CONVERSATION_UPDATED, conversation.push_event_data)
   end
@@ -133,21 +136,22 @@ class ActionCableListener < BaseListener
 
   def assignee_changed(event)
     conversation, account = extract_conversation_and_account(event)
-    tokens = user_tokens(account, conversation.inbox.members)
+    tokens = conversation_user_tokens(account, conversation)
 
     broadcast(account, tokens, ASSIGNEE_CHANGED, conversation.push_event_data)
   end
 
   def team_changed(event)
     conversation, account = extract_conversation_and_account(event)
-    tokens = user_tokens(account, conversation.inbox.members)
+    tokens = conversation_user_tokens(account, conversation)
 
     broadcast(account, tokens, TEAM_CHANGED, conversation.push_event_data)
+    broadcast_access_revoked(account, conversation)
   end
 
   def conversation_contact_changed(event)
     conversation, account = extract_conversation_and_account(event)
-    tokens = user_tokens(account, conversation.inbox.members)
+    tokens = conversation_user_tokens(account, conversation)
 
     broadcast(account, tokens, CONVERSATION_CONTACT_CHANGED, conversation.push_event_data)
   end
@@ -195,7 +199,7 @@ class ActionCableListener < BaseListener
                            user.pubsub_token
                          end
 
-    tokens = user_tokens(account, conversation.inbox.members) + [conversation.contact_inbox.pubsub_token]
+    tokens = conversation_user_tokens(account, conversation) + [conversation.contact_inbox.pubsub_token]
     current_user_token.present? ? tokens - [current_user_token] : tokens
   end
 
@@ -203,6 +207,18 @@ class ActionCableListener < BaseListener
     agent_tokens = agents.pluck(:pubsub_token)
     admin_tokens = account.administrators.pluck(:pubsub_token)
     (agent_tokens + admin_tokens).uniq
+  end
+
+  # Inbox members and admins, minus team-restricted members outside the conversation's team.
+  def conversation_user_tokens(account, conversation)
+    user_tokens(account, conversation.inbox.members) - ::Conversations::TeamVisibility.hidden_pubsub_tokens(account, conversation)
+  end
+
+  # Only sends the conversation id, so nothing about it leaks to members who lost access.
+  def broadcast_access_revoked(account, conversation)
+    tokens = user_tokens(account, conversation.inbox.members) & ::Conversations::TeamVisibility.hidden_pubsub_tokens(account, conversation)
+
+    broadcast(account, tokens, CONVERSATION_ACCESS_REVOKED, { id: conversation.display_id })
   end
 
   def contact_tokens(contact_inbox, message)

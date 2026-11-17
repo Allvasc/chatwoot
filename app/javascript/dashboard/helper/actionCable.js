@@ -56,6 +56,7 @@ class ActionCableConnector extends BaseActionCableConnector {
       'notification.updated': this.onNotificationUpdated,
       'conversation.read': this.onConversationRead,
       'conversation.updated': this.onConversationUpdated,
+      'conversation.access_revoked': this.onConversationAccessRevoked,
       'conversation.unread_count_changed':
         this.onConversationUnreadCountChanged,
       'account.cache_invalidated': this.onCacheInvalidate,
@@ -148,6 +149,12 @@ class ActionCableConnector extends BaseActionCableConnector {
 
   onConversationUpdated = data => {
     this.app.$store.dispatch('updateConversation', data);
+    this.fetchConversationStats();
+  };
+
+  // Sent to team-restricted agents when a conversation moves to a team they are not in.
+  onConversationAccessRevoked = ({ id }) => {
+    this.app.$store.dispatch('removeConversation', id);
     this.fetchConversationStats();
   };
 

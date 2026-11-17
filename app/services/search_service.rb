@@ -30,10 +30,22 @@ class SearchService
     @search_query ||= params[:q].to_s.strip
   end
 
+  # Team-restricted members only find conversations (and messages) of their own teams
+  # plus team-less ones, the same rule as Conversations::PermissionFilterService.
+  def team_restricted?
+    ::Conversations::TeamVisibility.restricted?(account_user)
+  end
+
+  def conversations_scope
+    return current_account.conversations unless team_restricted?
+
+    current_account.conversations.where(team_id: ::Conversations::TeamVisibility.visible_team_ids(current_user, current_account))
+  end
+
   def filter_conversations
-    conversations_query = current_account.conversations.where(inbox_id: accessable_inbox_ids)
-                                         .joins('INNER JOIN contacts ON conversations.contact_id = contacts.id')
-                                         .where("cast(conversations.display_id as text) ILIKE :search OR contacts.name ILIKE :search OR contacts.email
+    conversations_query = conversations_scope.where(inbox_id: accessable_inbox_ids)
+                                             .joins('INNER JOIN contacts ON conversations.contact_id = contacts.id')
+                                             .where("cast(conversations.display_id as text) ILIKE :search OR contacts.name ILIKE :search OR contacts.email
                             ILIKE :search OR contacts.phone_number ILIKE :search OR contacts.identifier ILIKE :search", search: "%#{search_query}%")
 
     if current_account.feature_enabled?('advanced_search')
@@ -64,7 +76,8 @@ class SearchService
   end
 
   def should_run_advanced_search?
-    ChatwootApp.advanced_search_allowed? && current_account.feature_enabled?('advanced_search')
+    # the Elasticsearch index has no team, so restricted members use the SQL search
+    ChatwootApp.advanced_search_allowed? && current_account.feature_enabled?('advanced_search') && !team_restricted?
   end
 
   def advanced_search; end
@@ -107,6 +120,7 @@ class SearchService
   def message_base_query
     query = current_account.messages.where('created_at >= ?', 3.months.ago)
     query = query.where(inbox_id: accessable_inbox_ids) unless should_skip_inbox_filtering?
+    query = query.where(conversation_id: conversations_scope.select(:id)) if team_restricted?
     query
   end
 
